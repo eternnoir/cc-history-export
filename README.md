@@ -21,7 +21,14 @@ Requires Go 1.21 or later:
 ```bash
 git clone https://github.com/frankwang/cc-history-export.git
 cd cc-history-export
-go build -o cc-export ./cmd/cc-export
+make build
+```
+
+Or build for a specific platform:
+```bash
+make build-darwin-arm64  # macOS Apple Silicon
+make build-linux-amd64   # Linux x64
+make build-windows-amd64 # Windows x64
 ```
 
 ### Pre-built Binaries
@@ -207,14 +214,63 @@ The Markdown export creates human-readable documents with:
 ### Running Tests
 
 ```bash
-go test ./...
+make test
+# or with coverage
+make test-coverage
 ```
 
 ### Building
 
 ```bash
-go build -o cc-export ./cmd/cc-export
+# Build for current platform
+make build
+
+# Build for all platforms
+make build-all
+
+# Create release archives
+make release
 ```
+
+### Development Workflow
+
+```bash
+# Format code
+make fmt
+
+# Run linter (requires golangci-lint)
+make lint
+
+# Run go vet
+make vet
+
+# Full development cycle (deps, fmt, vet, test, build)
+make dev
+
+# Quick check before committing
+make check
+```
+
+### Cross-Platform Builds
+
+The Makefile supports building for multiple platforms:
+
+```bash
+# All platforms
+make build-all
+
+# Specific platforms
+make build-linux    # All Linux architectures
+make build-darwin   # All macOS architectures
+make build-windows  # All Windows architectures
+
+# Specific architecture
+make build-linux-arm64
+make build-darwin-amd64
+make build-windows-386
+```
+
+Build artifacts are placed in the `dist/` directory.
 
 ## License
 
