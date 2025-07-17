@@ -11,6 +11,7 @@ A command-line tool to export conversation history from Claude Code (.claude dir
 - Include todo lists and session metadata
 - Token usage statistics
 - Flexible output options
+- Output to stdout for pipeline integration
 
 ## Installation
 
@@ -47,6 +48,24 @@ cc-export --output conversations.md
 Export to JSON format:
 ```bash
 cc-export --format json --output export.json
+```
+
+### Output to stdout
+
+Export to stdout for pipeline integration:
+```bash
+# Output to stdout (default when no --output specified)
+cc-export
+
+# Or explicitly with '-'
+cc-export --output -
+
+# Pipe to less for viewing
+cc-export | less
+
+# Save stdout to file
+cc-export > export.md
+cc-export --format json > export.json
 ```
 
 ### Filtering Options
@@ -114,7 +133,7 @@ cc-export --max-sessions 100 --output limited-export.json
   -max-sessions int
         Maximum number of sessions to export (0 = unlimited)
   -output string
-        Output file path (required)
+        Output file path (use '-' or leave empty for stdout)
   -pretty
         Pretty print JSON output (default true)
   -projects string
@@ -157,6 +176,65 @@ cc-export --start-time "2024-01-15 09:00:00" --end-time "2024-01-15 17:30:00" --
 
 # Include sessions from multiple days that ended within the range
 cc-export --start-time 2024-01-14 --end-time 2024-01-16 --output three-days.json
+```
+
+## Working with JSON Output using jq
+
+When exporting to JSON and piping to stdout, you can use `jq` for powerful data processing:
+
+### Basic Examples
+
+```bash
+# Get project names and session counts
+cc-export --format json | jq '.name, .session_count'
+
+# List all session IDs
+cc-export --format json | jq '.sessions[].id'
+
+# Get total token usage
+cc-export --format json | jq '.token_usage.total'
+```
+
+### Advanced Filtering
+
+```bash
+# Find sessions with more than 50 messages
+cc-export --format json | jq '.sessions[] | select(.message_count > 50) | {id, message_count}'
+
+# Extract all user messages
+cc-export --format json | jq '.sessions[].messages[] | select(.role == "user") | .content'
+
+# Get sessions from a specific date
+cc-export --format json | jq '.sessions[] | select(.start_time | startswith("2024-01-15")) | .id'
+
+# Calculate average messages per session
+cc-export --format json | jq '.message_count / .session_count'
+```
+
+### Useful Queries
+
+```bash
+# Export session summaries to CSV
+cc-export --format json | jq -r '.sessions[] | [.id, .start_time, .message_count, .token_usage.total] | @csv'
+
+# Find longest sessions by duration
+cc-export --format json | jq '.sessions | sort_by(.duration_seconds) | reverse | .[0:5] | .[] | {id, duration_seconds}'
+
+# Extract all code blocks from assistant messages
+cc-export --format json | jq -r '.sessions[].messages[] | select(.role == "assistant") | .content | scan("```[^`]*```"; "m")'
+
+# Get todo items
+cc-export --format json --include-todos | jq '.sessions[].todos[]? | {content, status}'
+```
+
+### Multiple Project Processing
+
+```bash
+# When exporting multiple projects, iterate through them
+cc-export --format json --projects "/path1,/path2" | jq '.[] | {name: .name, messages: .message_count}'
+
+# Aggregate statistics across projects
+cc-export --format json | jq '[.[] | .token_usage.total] | add'
 ```
 
 ## Export Formats

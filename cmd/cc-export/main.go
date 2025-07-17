@@ -97,7 +97,7 @@ func parseFlags() *config {
 	
 	// Define flags
 	flag.StringVar(&cfg.sourcePath, "source", "", "Path to .claude directory (defaults to ~/.claude)")
-	flag.StringVar(&cfg.outputPath, "output", "", "Output file path (required)")
+	flag.StringVar(&cfg.outputPath, "output", "", "Output file path (use '-' or leave empty for stdout)")
 	flag.StringVar(&cfg.format, "format", "markdown", "Export format: json, markdown, html")
 	
 	// Filter flags
@@ -125,7 +125,10 @@ func parseFlags() *config {
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  # Export all data to Markdown (default)\n")
+		fmt.Fprintf(os.Stderr, "  # Export all data to stdout (pipe to other tools)\n")
+		fmt.Fprintf(os.Stderr, "  cc-export | less\n")
+		fmt.Fprintf(os.Stderr, "  cc-export --format json | jq '.projects[0].sessions'\n\n")
+		fmt.Fprintf(os.Stderr, "  # Export all data to Markdown file\n")
 		fmt.Fprintf(os.Stderr, "  cc-export --output conversations.md\n\n")
 		fmt.Fprintf(os.Stderr, "  # Export specific project to JSON\n")
 		fmt.Fprintf(os.Stderr, "  cc-export --projects /Users/myproject --format json --output project.json\n\n")
@@ -157,8 +160,12 @@ func parseFlags() *config {
 }
 
 func validateConfig(cfg *config) error {
-	if cfg.outputPath == "" {
-		return fmt.Errorf("output path is required")
+	// outputPath can be empty or "-" for stdout
+	if cfg.outputPath == "" || cfg.outputPath == "-" {
+		// batch export requires output directory
+		if cfg.batchExport {
+			return fmt.Errorf("batch export requires an output directory")
+		}
 	}
 	
 	if cfg.sourcePath == "" {
@@ -284,7 +291,9 @@ func run(cfg *config) error {
 }
 
 func singleExport(exp *exporter.FileExporter, projects []*models.Project, cfg *config) error {
-	if cfg.verbose {
+	isStdout := cfg.outputPath == "" || cfg.outputPath == "-"
+	
+	if cfg.verbose && !isStdout {
 		fmt.Printf("Exporting to %s...\n", cfg.outputPath)
 	}
 	
@@ -300,7 +309,14 @@ func singleExport(exp *exporter.FileExporter, projects []*models.Project, cfg *c
 		return fmt.Errorf("export failed: %w", err)
 	}
 	
-	fmt.Printf("Successfully exported to %s\n", cfg.outputPath)
+	// Only print success message to stderr when outputting to stdout
+	if isStdout {
+		if cfg.verbose {
+			fmt.Fprintf(os.Stderr, "Export completed successfully\n")
+		}
+	} else {
+		fmt.Printf("Successfully exported to %s\n", cfg.outputPath)
+	}
 	return nil
 }
 

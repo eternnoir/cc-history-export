@@ -84,6 +84,11 @@ func (e *FileExporter) Export(writer io.Writer, data interface{}, exportType Exp
 
 // ExportToFile exports data to a file
 func (e *FileExporter) ExportToFile(filename string, data interface{}, exportType ExportType) error {
+	// If filename is empty or "-", write to stdout
+	if filename == "" || filename == "-" {
+		return e.Export(os.Stdout, data, exportType)
+	}
+
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0755); err != nil {
